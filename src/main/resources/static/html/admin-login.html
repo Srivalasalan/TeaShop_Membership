@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login | Vasanthan Tea Stall</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:var(--brown-dark); overflow:hidden; }
+    .bg-circles { position:fixed; inset:0; pointer-events:none; }
+    .bg-circles span { position:absolute; border-radius:50%; background:rgba(200,151,58,0.06); animation:float 8s ease-in-out infinite; }
+    .bg-circles span:nth-child(1){width:400px;height:400px;top:-100px;right:-100px;}
+    .bg-circles span:nth-child(2){width:300px;height:300px;bottom:-80px;left:-80px;animation-delay:3s;}
+    .bg-circles span:nth-child(3){width:200px;height:200px;top:40%;left:10%;animation-delay:5s;}
+    @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}}
+
+    .login-card { background:var(--white); border-radius:20px; width:420px; padding:48px 40px; box-shadow:0 24px 80px rgba(0,0,0,0.4); position:relative; z-index:1; animation:slideUp 0.5s ease; }
+    @keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+
+    .login-logo { text-align:center; margin-bottom:32px; }
+    .login-logo .icon { font-size:52px; display:block; margin-bottom:8px; animation:steam 2s ease-in-out infinite; }
+    @keyframes steam{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+    .login-logo h1 { font-size:26px; color:var(--brown-dark); margin-bottom:4px; }
+    .login-logo p  { font-size:13px; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase; }
+
+    .divider { height:1px; background:var(--cream-dark); margin:24px 0; }
+    .member-link { text-align:center; font-size:13px; color:var(--text-muted); }
+    .member-link a { color:var(--brown-mid); text-decoration:none; font-weight:600; }
+  </style>
+</head>
+<body>
+  <div class="bg-circles"><span></span><span></span><span></span></div>
+
+  <div class="login-card">
+    <div class="login-logo">
+      <span class="icon">🍵</span>
+      <h1>Vasanthan Tea Stall</h1>
+      <p>Admin Portal</p>
+    </div>
+
+    <div id="alertBox" class="alert"></div>
+
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="username" placeholder="Enter username" autofocus />
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="password" placeholder="Enter password" />
+    </div>
+
+    <button class="btn btn-primary btn-full" onclick="handleLogin()">Sign In</button>
+
+    <div class="divider"></div>
+    <div class="member-link">
+      Are you a member?
+      <a href="/html/member-login.html" onclick="sessionStorage.clear()">Login here →</a>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    if (getAdminSession()) window.location.href = '/html/admin-dashboard.html';
+
+    document.getElementById('password').addEventListener('keypress', e => {
+      if (e.key === 'Enter') handleLogin();
+    });
+
+    async function handleLogin() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+      if (!username || !password) {
+        showAlert('alertBox', 'Please enter username and password!', 'error'); return;
+      }
+      try {
+        const res = await AdminAPI.login(username, password);
+        if (res.statusCode === 200) {
+          saveAdminSession(username);
+          window.location.href = '/html/admin-dashboard.html';
+        } else {
+          showAlert('alertBox', res.message || 'Invalid credentials!', 'error');
+        }
+      } catch (err) {
+        showAlert('alertBox', 'Server error. Please try again.', 'error');
+      }
+    }
+  </script>
+</body>
+</html>

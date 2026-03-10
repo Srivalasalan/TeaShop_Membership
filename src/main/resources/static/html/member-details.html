@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Member Details | Vasanthan Tea Stall</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .member-hero { background:linear-gradient(135deg,var(--brown-dark),var(--brown-mid)); border-radius:var(--radius); padding:28px; color:white; margin-bottom:24px; display:flex; align-items:center; gap:20px; }
+    .member-avatar { width:64px; height:64px; background:rgba(255,255,255,0.15); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:28px; flex-shrink:0; }
+    .member-hero h2 { color:white; font-size:22px; margin-bottom:4px; }
+    .member-hero p  { color:rgba(255,255,255,0.7); font-size:14px; }
+
+    .sub-card { background:var(--white); border-radius:var(--radius); padding:28px; margin-bottom:24px; box-shadow:var(--shadow-sm); border:1px solid rgba(160,98,42,0.08); }
+
+    .tea-count { text-align:center; padding:20px 0; }
+    .tea-count .number { font-family:'Playfair Display',serif; font-size:72px; font-weight:700; color:var(--brown-dark); line-height:1; }
+    .tea-count .label  { font-size:14px; color:var(--text-muted); margin-top:4px; }
+
+    .action-row { display:flex; gap:12px; margin-top:20px; flex-wrap:wrap; }
+
+    .plan-selector { background:var(--cream); border-radius:var(--radius-sm); padding:16px; margin-top:16px; border:1.5px dashed var(--brown-light); display:none; }
+
+    .no-sub { text-align:center; padding:32px; color:var(--text-muted); }
+    .no-sub .icon { font-size:40px; margin-bottom:8px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <a class="navbar-brand" href="#">
+      <span class="logo">🍵</span>
+      <div><span>Vasanthan Tea Stall</span><small>Admin Panel</small></div>
+    </a>
+    <div class="navbar-actions">
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="container" style="max-width:720px">
+    <a href="/html/admin-dashboard.html" class="back-link">← Back to Dashboard</a>
+
+    <div id="alertBox" class="alert"></div>
+
+    <div class="member-hero">
+      <div class="member-avatar">👤</div>
+      <div>
+        <h2 id="memberName">Loading...</h2>
+        <p id="memberPhone">—</p>
+      </div>
+    </div>
+
+    <!-- Active Subscription -->
+    <div class="sub-card">
+      <h3 style="margin-bottom:20px">Active Subscription</h3>
+      <div id="subContent"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- History -->
+    <div class="sub-card" id="historyCard" style="display:none">
+      <h3 style="margin-bottom:20px">Subscription History</h3>
+      <div id="historyContent"></div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    if (!guardAdmin()) throw new Error('Unauthorized');
+
+    const phone = new URLSearchParams(window.location.search).get('phone');
+    if (!phone) window.location.href = '/html/admin-dashboard.html';
+
+    let allPlans = [];
+
+    window.onload = async () => {
+      await loadProfile();
+      await loadPlans();
+      await loadActiveSub();
+      await loadHistory();
+    };
+
+    function logout() { clearAdminSession(); window.location.href = '/html/admin-login.html'; }
+
+    async function loadProfile() {
+      const res = await MemberAPI.profile(phone);
+      if (res.data) {
+        document.getElementById('memberName').textContent  = res.data.name;
+        document.getElementById('memberPhone').textContent = '📞 ' + res.data.phone;
+      }
+    }
+
+    async function loadPlans() {
+      const res = await PlanAPI.getAll();
+      allPlans = res.data || [];
+    }
+
+    async function loadActiveSub() {
+      const res = await SubscriptionAPI.active(phone);
+      renderActiveSub(res.data || null);
+    }
+
+    function renderActiveSub(sub) {
+      const el = document.getElementById('subContent');
+      if (!sub) {
+        el.innerHTML = `
+          <div class="no-sub"><div class="icon">🍵</div><p>No active subscription</p></div>
+          <div class="plan-selector" id="planSelector" style="display:block">
+            <label>Select Plan to Assign</label>
+            <select id="planSelect">
+              <option value="">-- Choose a plan --</option>
+              ${allPlans.map(p => `<option value="${p.id}">${p.planName} — ${p.totalTeas} teas — ₹${p.amount} — ${p.durationDays} days</option>`).join('')}
+            </select>
+            <div style="margin-top:12px">
+              <button class="btn btn-primary" onclick="assignPlan()">Assign Plan</button>
+            </div>
+          </div>`;
+        return;
+      }
+
+      const pct = ((sub.remainingTeas / sub.totalTeas) * 100).toFixed(0);
+      el.innerHTML = `
+        <div class="tea-count">
+          <div class="number">${sub.remainingTeas}</div>
+          <div class="label">Teas Remaining of ${sub.totalTeas}</div>
+        </div>
+        <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
+        <div class="info-row"><span class="info-label">Plan</span><span class="info-value">${sub.planName}</span></div>
+        <div class="info-row"><span class="info-label">Amount Paid</span><span class="info-value">₹${sub.amountPaid}</span></div>
+        <div class="info-row"><span class="info-label">Valid Until</span><span class="info-value">${formatDate(sub.endDate)}</span></div>
+        <div class="info-row"><span class="info-label">Status</span><span class="info-value"><span class="badge badge-active">ACTIVE</span></span></div>
+        <div class="action-row">
+          <button class="btn btn-success" onclick="useTea()">☕ Mark Tea Used</button>
+          <button class="btn btn-outline" onclick="toggleRenew()">🔄 Renew Subscription</button>
+        </div>
+        <div class="plan-selector" id="planSelector">
+          <label>Select Plan to Renew</label>
+          <select id="planSelect">
+            <option value="">-- Choose a plan --</option>
+            ${allPlans.map(p => `<option value="${p.id}">${p.planName} — ${p.totalTeas} teas — ₹${p.amount} — ${p.durationDays} days</option>`).join('')}
+          </select>
+          <div style="margin-top:12px">
+            <button class="btn btn-primary" onclick="assignPlan()">Assign Plan</button>
+          </div>
+        </div>`;
+    }
+
+    function toggleRenew() {
+      const el = document.getElementById('planSelector');
+      if (el) el.style.display = el.style.display === 'none' || el.style.display === '' ? 'block' : 'none';
+    }
+
+    async function useTea() {
+      const res = await SubscriptionAPI.useTea(phone);
+      if (res.statusCode === 200) {
+        showAlert('alertBox', res.message, 'success');
+        await loadActiveSub();
+      } else {
+        showAlert('alertBox', res.message, 'error');
+      }
+    }
+
+    async function assignPlan() {
+      const planId = document.getElementById('planSelect').value;
+      if (!planId) { showAlert('alertBox', 'Please select a plan!', 'error'); return; }
+      const res = await SubscriptionAPI.assign(phone, planId);
+      if (res.statusCode === 201) {
+        showAlert('alertBox', 'Subscription assigned!', 'success');
+        await loadActiveSub();
+        await loadHistory();
+      } else {
+        showAlert('alertBox', res.message, 'error');
+      }
+    }
+
+    async function loadHistory() {
+      const res = await SubscriptionAPI.history(phone);
+      const history = res.data || [];
+      if (!history.length) return;
+      document.getElementById('historyCard').style.display = 'block';
+      document.getElementById('historyContent').innerHTML = `
+        <table>
+          <thead><tr><th>Plan</th><th>Start</th><th>End</th><th>Teas</th><th>Status</th></tr></thead>
+          <tbody>${history.map(s => `
+            <tr>
+              <td>${s.planName}</td>
+              <td>${formatDate(s.startDate)}</td>
+              <td>${formatDate(s.endDate)}</td>
+              <td>${s.teasUsed}/${s.totalTeas}</td>
+              <td><span class="badge ${s.status==='ACTIVE'?'badge-active':'badge-expired'}">${s.status}</span></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    function formatDate(dateArr) {
+      if (!dateArr) return '—';
+      if (Array.isArray(dateArr)) {
+        const [y,m,d] = dateArr;
+        return `${String(d).padStart(2,'0')} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]} ${y}`;
+      }
+      return new Date(dateArr).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'});
+    }
+  </script>
+</body>
+</html>

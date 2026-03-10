@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard | Vasanthan Tea Stall</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px; }
+    .stat-card { background:var(--white); border-radius:var(--radius); padding:22px 24px; border:1px solid rgba(160,98,42,0.1); box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:16px; }
+    .stat-icon { font-size:36px; }
+    .stat-label { font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+    .stat-value { font-family:'Playfair Display',serif; font-size:28px; color:var(--brown-dark); font-weight:700; }
+
+    .tab-bar { display:flex; gap:4px; background:var(--cream-dark); padding:4px; border-radius:var(--radius-sm); margin-bottom:24px; width:fit-content; }
+    .tab { padding:8px 20px; border-radius:6px; border:none; background:transparent; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:500; color:var(--text-muted); cursor:pointer; transition:all 0.2s; }
+    .tab.active { background:var(--white); color:var(--brown-mid); box-shadow:var(--shadow-sm); }
+
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+
+    .search-bar { display:flex; gap:10px; margin-bottom:16px; }
+    .search-bar input { flex:1; }
+    .phone-tag { font-size:12px; color:var(--text-muted); background:var(--cream-dark); padding:2px 8px; border-radius:4px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <a class="navbar-brand" href="#">
+      <span class="logo">🍵</span>
+      <div><span>Vasanthan Tea Stall</span><small>Admin Panel</small></div>
+    </a>
+    <div class="navbar-actions">
+      <span class="navbar-user" id="adminName"></span>
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div id="alertBox" class="alert"></div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-icon">👥</span>
+        <div><div class="stat-label">Total Members</div><div class="stat-value" id="statMembers">—</div></div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">📋</span>
+        <div><div class="stat-label">Active Plans</div><div class="stat-value" id="statPlans">—</div></div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">☕</span>
+        <div><div class="stat-label">Shop</div><div class="stat-value" style="font-size:18px">Vasanthan Tea Stall</div></div>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab active" id="tab-btn-members" onclick="switchTab('members', this)">👥 Members</button>
+      <button class="tab" id="tab-btn-plans" onclick="switchTab('plans', this)">📋 Plans</button>
+    </div>
+
+    <!-- Members Tab -->
+    <div class="tab-content active" id="tab-members">
+      <div class="card">
+        <div class="section-header">
+          <h2>All Members</h2>
+          <button class="btn btn-primary btn-sm" onclick="openModal('addMemberModal')">+ Add Member</button>
+        </div>
+        <div class="search-bar">
+          <input type="text" id="memberSearch" placeholder="Search by name or phone..." oninput="filterMembers()" />
+        </div>
+        <div id="membersTable"><div class="loading">Loading members...</div></div>
+      </div>
+    </div>
+
+    <!-- Plans Tab -->
+    <div class="tab-content" id="tab-plans">
+      <div class="card">
+        <div class="section-header">
+          <h2>Subscription Plans</h2>
+          <button class="btn btn-primary btn-sm" onclick="openModal('addPlanModal')">+ Add Plan</button>
+        </div>
+        <div id="plansTable"><div class="loading">Loading plans...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Member Modal -->
+  <div class="modal-overlay" id="addMemberModal">
+    <div class="modal">
+      <h3>Add New Member</h3>
+      <div id="memberModalAlert" class="alert"></div>
+      <div class="form-group"><label>Full Name</label><input type="text" id="mName" placeholder="e.g. Ravi Kumar" /></div>
+      <div class="form-group"><label>Phone Number</label><input type="text" id="mPhone" placeholder="e.g. 9876543210" maxlength="10" /></div>
+      <div class="form-group"><label>PIN (4 digits)</label><input type="password" id="mPin" placeholder="e.g. 1234" maxlength="4" /></div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('addMemberModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="addMember()">Add Member</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Plan Modal -->
+  <div class="modal-overlay" id="addPlanModal">
+    <div class="modal">
+      <h3>Add Subscription Plan</h3>
+      <div id="planModalAlert" class="alert"></div>
+      <div class="form-group"><label>Plan Name</label><input type="text" id="pName" placeholder="e.g. Basic, Premium" /></div>
+      <div class="form-group"><label>Total Teas</label><input type="number" id="pTeas" placeholder="e.g. 25" /></div>
+      <div class="form-group"><label>Amount (₹)</label><input type="number" id="pAmount" placeholder="e.g. 200" /></div>
+      <div class="form-group"><label>Duration (Days)</label><input type="number" id="pDays" placeholder="e.g. 28" /></div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('addPlanModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="addPlan()">Add Plan</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    if (!guardAdmin()) throw new Error('Unauthorized');
+    document.getElementById('adminName').textContent = getAdminSession();
+
+    let allMembers = [], allPlans = [];
+
+    window.onload = () => { loadMembers(); loadPlans(); };
+
+    function logout() { clearAdminSession(); window.location.href = '/html/admin-login.html'; }
+
+    function switchTab(tab, btn) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    function openModal(id)  { document.getElementById(id).classList.add('show'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+    async function loadMembers() {
+      const res = await MemberAPI.getAll();
+      allMembers = res.data || [];
+      document.getElementById('statMembers').textContent = allMembers.length;
+      renderMembers(allMembers);
+    }
+
+    async function loadPlans() {
+      const res = await PlanAPI.getAll();
+      allPlans = res.data || [];
+      document.getElementById('statPlans').textContent = allPlans.length;
+      renderPlans(allPlans);
+    }
+
+    function filterMembers() {
+      const q = document.getElementById('memberSearch').value.toLowerCase();
+      renderMembers(allMembers.filter(m => m.name.toLowerCase().includes(q) || m.phone.includes(q)));
+    }
+
+    function renderMembers(members) {
+      const el = document.getElementById('membersTable');
+      if (!members.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><p>No members found</p></div>'; return;
+      }
+      el.innerHTML = `<table>
+        <thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Action</th></tr></thead>
+        <tbody>${members.map((m, i) => `
+          <tr>
+            <td>${i+1}</td>
+            <td><strong>${m.name}</strong></td>
+            <td><span class="phone-tag">${m.phone}</span></td>
+            <td>
+              <a href="/html/member-details.html?phone=${m.phone}" class="btn btn-outline btn-sm">View</a>
+              <button onclick="deleteMember('${m.phone}')" class="btn btn-danger btn-sm">Delete</button>
+            </td>
+          </tr>`).join('')}
+        </tbody></table>`;
+    }
+
+    function renderPlans(plans) {
+      const el = document.getElementById('plansTable');
+      if (!plans.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>No plans yet</p></div>'; return;
+      }
+      el.innerHTML = `<table>
+        <thead><tr><th>Plan</th><th>Teas</th><th>Amount</th><th>Duration</th><th>Action</th></tr></thead>
+        <tbody>${plans.map(p => `
+          <tr>
+            <td><strong>${p.planName}</strong></td>
+            <td>☕ ${p.totalTeas} teas</td>
+            <td>₹${p.amount}</td>
+            <td>${p.durationDays} days</td>
+            <td><button onclick="deletePlan(${p.id})" class="btn btn-danger btn-sm">Delete</button></td>
+          </tr>`).join('')}
+        </tbody></table>`;
+    }
+
+    async function addMember() {
+      const name = document.getElementById('mName').value.trim();
+      const phone = document.getElementById('mPhone').value.trim();
+      const pin = document.getElementById('mPin').value.trim();
+      if (!name || !phone || !pin) { showAlert('memberModalAlert', 'All fields required!', 'error'); return; }
+      const res = await MemberAPI.add(name, phone, pin);
+      if (res.statusCode === 201) {
+        closeModal('addMemberModal');
+        showAlert('alertBox', 'Member added!', 'success');
+        loadMembers();
+      } else { showAlert('memberModalAlert', res.message, 'error'); }
+    }
+
+    async function addPlan() {
+      const planName = document.getElementById('pName').value.trim();
+      const totalTeas = +document.getElementById('pTeas').value;
+      const amount = +document.getElementById('pAmount').value;
+      const durationDays = +document.getElementById('pDays').value;
+      if (!planName || !totalTeas || !amount || !durationDays) { showAlert('planModalAlert', 'All fields required!', 'error'); return; }
+      const res = await PlanAPI.add(planName, totalTeas, amount, durationDays);
+      if (res.statusCode === 201) {
+        closeModal('addPlanModal');
+        showAlert('alertBox', 'Plan added!', 'success');
+        loadPlans();
+      } else { showAlert('planModalAlert', res.message, 'error'); }
+    }
+
+    async function deleteMember(phone) {
+      if (!confirm('Delete this member?')) return;
+      const res = await MemberAPI.delete(phone);
+      if (res.statusCode === 200) { showAlert('alertBox', 'Member deleted!', 'success'); loadMembers(); }
+      else { showAlert('alertBox', res.message, 'error'); }
+    }
+
+    async function deletePlan(id) {
+      if (!confirm('Delete this plan?')) return;
+      const res = await PlanAPI.delete(id);
+      if (res.statusCode === 200) { showAlert('alertBox', 'Plan deleted!', 'success'); loadPlans(); }
+      else { showAlert('alertBox', res.message, 'error'); }
+    }
+  </script>
+</body>
+</html>

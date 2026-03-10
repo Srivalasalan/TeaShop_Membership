@@ -26,10 +26,14 @@ public class Member {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	@Column(nullable = false)
+	
 	private String name;
 	@Column(nullable = false, unique = true)
-	private Long phone;
+	
+	private String phone;
+	
 	@Column(nullable = false)
+	
 	private String pin;
 	
 	@OneToMany(mappedBy = "member",cascade = CascadeType.ALL,fetch = FetchType.LAZY)

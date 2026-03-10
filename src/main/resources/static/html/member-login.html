@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Member Login | Vasanthan Tea Stall</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:linear-gradient(160deg,#F9F3EA 0%,#EFE6D5 50%,#E0CDB5 100%); overflow:hidden; }
+
+    .deco { position:fixed; font-size:120px; opacity:0.04; pointer-events:none; animation:spin 20s linear infinite; }
+    .deco-1 { top:-30px; right:-30px; }
+    .deco-2 { bottom:-30px; left:-30px; animation-direction:reverse; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    .login-card { background:var(--white); border-radius:20px; width:420px; padding:48px 40px; box-shadow:var(--shadow-lg); position:relative; z-index:1; animation:slideUp 0.5s ease; }
+    @keyframes slideUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+
+    .top-strip { height:5px; background:linear-gradient(90deg,var(--brown-dark),var(--gold),var(--brown-mid)); border-radius:20px 20px 0 0; position:absolute; top:0; left:0; right:0; }
+
+    .login-logo { text-align:center; margin-bottom:32px; }
+    .login-logo .icon { font-size:52px; display:block; margin-bottom:10px; }
+    .login-logo h1 { font-size:26px; color:var(--brown-dark); }
+    .login-logo p  { font-size:13px; color:var(--text-muted); margin-top:4px; }
+
+    .pin-inputs { display:flex; gap:10px; justify-content:center; margin-top:8px; }
+    .pin-inputs input { width:56px; height:56px; text-align:center; font-size:20px; font-weight:700; border-radius:10px; padding:0; }
+
+    .divider { height:1px; background:var(--cream-dark); margin:24px 0; }
+    .admin-link { text-align:center; font-size:13px; color:var(--text-muted); }
+    .admin-link a { color:var(--brown-mid); text-decoration:none; font-weight:600; }
+  </style>
+</head>
+<body>
+  <div class="deco deco-1">🍵</div>
+  <div class="deco deco-2">☕</div>
+
+  <div class="login-card">
+    <div class="top-strip"></div>
+
+    <div class="login-logo">
+      <span class="icon">🍵</span>
+      <h1>Vasanthan Tea Stall</h1>
+      <p>Member Portal — Enter your phone & PIN</p>
+    </div>
+
+    <div id="alertBox" class="alert"></div>
+
+    <div class="form-group">
+      <label>Phone Number</label>
+      <input type="tel" id="phone" placeholder="e.g. 9876543210" maxlength="10" />
+    </div>
+
+    <div class="form-group">
+      <label>PIN</label>
+      <div class="pin-inputs">
+        <input type="password" class="pin-box" maxlength="1" />
+        <input type="password" class="pin-box" maxlength="1" />
+        <input type="password" class="pin-box" maxlength="1" />
+        <input type="password" class="pin-box" maxlength="1" />
+      </div>
+    </div>
+
+    <button class="btn btn-gold btn-full" style="margin-top:8px" onclick="handleLogin()">Login →</button>
+
+    <div class="divider"></div>
+    <div class="admin-link">Admin? <a href="/html/admin-login.html" onclick="sessionStorage.clear()">Sign in here →</a></div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    if (getMemberSession()) window.location.href = '/html/member-dashboard.html';
+
+    const pinBoxes = document.querySelectorAll('.pin-box');
+    pinBoxes.forEach((box, i) => {
+      box.addEventListener('input', () => {
+        if (box.value && i < pinBoxes.length - 1) pinBoxes[i+1].focus();
+      });
+      box.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && !box.value && i > 0) pinBoxes[i-1].focus();
+        if (e.key === 'Enter') handleLogin();
+      });
+    });
+
+    async function handleLogin() {
+      const phone = document.getElementById('phone').value.trim();
+      const pin   = Array.from(pinBoxes).map(b => b.value).join('');
+      if (!phone || pin.length < 4) {
+        showAlert('alertBox', 'Please enter phone and full 4-digit PIN!', 'error'); return;
+      }
+      const res = await MemberAPI.login(phone, pin);
+      if (res.statusCode === 200) {
+        saveMemberSession(res.data);
+        window.location.href = '/html/member-dashboard.html';
+      } else {
+        showAlert('alertBox', res.message || 'Invalid phone or PIN!', 'error');
+        pinBoxes.forEach(b => b.value = '');
+        pinBoxes[0].focus();
+      }
+    }
+  </script>
+</body>
+</html>

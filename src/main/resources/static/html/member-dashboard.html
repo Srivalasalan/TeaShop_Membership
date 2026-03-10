@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Membership | Vasanthan Tea Stall</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .welcome-card { background:linear-gradient(135deg,var(--brown-dark),var(--brown-mid)); border-radius:var(--radius); padding:28px 32px; color:white; margin-bottom:24px; position:relative; overflow:hidden; }
+    .welcome-card::after { content:'🍵'; position:absolute; right:24px; top:50%; transform:translateY(-50%); font-size:64px; opacity:0.15; }
+    .welcome-card h2 { color:white; font-size:24px; margin-bottom:4px; }
+    .welcome-card p  { color:rgba(255,255,255,0.65); font-size:14px; }
+
+    .sub-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
+    .mini-stat { background:var(--white); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow-sm); border:1px solid rgba(160,98,42,0.08); text-align:center; }
+    .mini-stat .num { font-family:'Playfair Display',serif; font-size:42px; font-weight:700; color:var(--brown-dark); line-height:1; }
+    .mini-stat .lbl { font-size:12px; color:var(--text-muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; }
+
+    .no-sub { text-align:center; padding:32px; color:var(--text-muted); }
+    .no-sub .icon { font-size:40px; margin-bottom:8px; }
+
+    .step { display:none; }
+    .step.active { display:block; }
+    .otp-hint { background:var(--cream-dark); border-radius:var(--radius-sm); padding:10px 14px; font-size:13px; color:var(--text-muted); margin-bottom:16px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <a class="navbar-brand" href="#">
+      <span class="logo">🍵</span>
+      <div><span>Vasanthan Tea Stall</span><small>Member Portal</small></div>
+    </a>
+    <div class="navbar-actions">
+      <button class="btn btn-outline btn-sm" style="color:var(--cream);border-color:rgba(255,255,255,0.3)" onclick="openChangePinModal()">Change PIN</button>
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="container" style="max-width:680px">
+    <div id="alertBox" class="alert"></div>
+
+    <div class="welcome-card">
+      <h2 id="memberName">Welcome!</h2>
+      <p id="memberPhone">Loading...</p>
+    </div>
+
+    <div class="sub-grid" id="miniStats" style="display:none">
+      <div class="mini-stat"><div class="num" id="statRemaining">—</div><div class="lbl">Teas Remaining</div></div>
+      <div class="mini-stat"><div class="num" id="statUsed">—</div><div class="lbl">Teas Used</div></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:20px">My Subscription</h3>
+      <div id="subContent"><div class="loading">Loading...</div></div>
+    </div>
+
+    <div class="card" id="historyCard" style="display:none">
+      <h3 style="margin-bottom:20px">Subscription History</h3>
+      <div id="historyContent"></div>
+    </div>
+  </div>
+
+  <!-- Change PIN Modal -->
+  <div class="modal-overlay" id="changePinModal">
+    <div class="modal">
+      <h3>Change PIN</h3>
+      <div id="pinModalAlert" class="alert"></div>
+
+      <div class="step active" id="step1">
+        <p style="font-size:14px;color:var(--text-muted);margin-bottom:16px">We'll send an OTP to verify your identity.</p>
+        <div class="form-group">
+          <label>Your Phone Number</label>
+          <input type="text" id="otpPhone" placeholder="Enter your phone" />
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeChangePinModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="requestOtp()">Send OTP</button>
+        </div>
+      </div>
+
+      <div class="step" id="step2">
+        <div class="otp-hint">📱 Check your console for the OTP</div>
+        <div class="form-group"><label>Enter OTP</label><input type="text" id="otpCode" placeholder="4-digit OTP" maxlength="4" /></div>
+        <div class="form-group"><label>New PIN</label><input type="password" id="newPin" placeholder="Enter new 4-digit PIN" maxlength="4" /></div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="backToStep1()">Back</button>
+          <button class="btn btn-primary" onclick="changePin()">Change PIN</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    if (!guardMember()) throw new Error('Unauthorized');
+
+    const member = getMemberSession();
+
+    window.onload = async () => {
+      document.getElementById('memberName').textContent  = 'Welcome, ' + member.name + '!';
+      document.getElementById('memberPhone').textContent = '📞 ' + member.phone;
+      document.getElementById('otpPhone').value = member.phone;
+      await loadActiveSub();
+      await loadHistory();
+    };
+
+    function logout() { clearMemberSession(); window.location.href = '/html/member-login.html'; }
+
+    async function loadActiveSub() {
+      const res = await SubscriptionAPI.active(member.phone);
+      const sub = res.data;
+      const el  = document.getElementById('subContent');
+
+      if (!sub) {
+        el.innerHTML = `<div class="no-sub"><div class="icon">🍵</div><p>No active subscription.<br>Please visit the shop to subscribe.</p></div>`;
+        return;
+      }
+
+      document.getElementById('miniStats').style.display = 'grid';
+      document.getElementById('statRemaining').textContent = sub.remainingTeas;
+      document.getElementById('statUsed').textContent      = sub.teasUsed;
+
+      const pct = ((sub.remainingTeas / sub.totalTeas) * 100).toFixed(0);
+      el.innerHTML = `
+        <div class="progress-wrap" style="height:14px;margin-bottom:20px">
+          <div class="progress-bar" style="width:${pct}%"></div>
+        </div>
+        <div class="info-row"><span class="info-label">Plan</span><span class="info-value">${sub.planName}</span></div>
+        <div class="info-row"><span class="info-label">Total Teas</span><span class="info-value">${sub.totalTeas}</span></div>
+        <div class="info-row"><span class="info-label">Amount Paid</span><span class="info-value">₹${sub.amountPaid}</span></div>
+        <div class="info-row"><span class="info-label">Valid Until</span><span class="info-value">${formatDate(sub.endDate)}</span></div>
+        <div class="info-row"><span class="info-label">Status</span><span class="info-value"><span class="badge badge-active">ACTIVE</span></span></div>`;
+    }
+
+    async function loadHistory() {
+      const res = await SubscriptionAPI.history(member.phone);
+      const history = res.data || [];
+      if (!history.length) return;
+      document.getElementById('historyCard').style.display = 'block';
+      document.getElementById('historyContent').innerHTML = `
+        <table>
+          <thead><tr><th>Plan</th><th>Start</th><th>End</th><th>Teas</th><th>Status</th></tr></thead>
+          <tbody>${history.map(s => `
+            <tr>
+              <td>${s.planName}</td>
+              <td>${formatDate(s.startDate)}</td>
+              <td>${formatDate(s.endDate)}</td>
+              <td>${s.teasUsed}/${s.totalTeas}</td>
+              <td><span class="badge ${s.status==='ACTIVE'?'badge-active':'badge-expired'}">${s.status}</span></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    function openChangePinModal()  { document.getElementById('changePinModal').classList.add('show'); }
+    function closeChangePinModal() { document.getElementById('changePinModal').classList.remove('show'); backToStep1(); }
+    function backToStep1() {
+      document.getElementById('step1').classList.add('active');
+      document.getElementById('step2').classList.remove('active');
+    }
+
+    async function requestOtp() {
+      const phone = document.getElementById('otpPhone').value.trim();
+      if (!phone) { showAlert('pinModalAlert', 'Enter your phone number!', 'error'); return; }
+      const res = await MemberAPI.requestOtp(phone);
+      if (res.statusCode === 200) {
+        document.getElementById('step1').classList.remove('active');
+        document.getElementById('step2').classList.add('active');
+        showAlert('pinModalAlert', 'OTP sent! Check console.', 'info');
+      } else {
+        showAlert('pinModalAlert', res.message, 'error');
+      }
+    }
+
+    async function changePin() {
+      const phone   = document.getElementById('otpPhone').value.trim();
+      const otpCode = document.getElementById('otpCode').value.trim();
+      const newPin  = document.getElementById('newPin').value.trim();
+      if (!otpCode || !newPin) { showAlert('pinModalAlert', 'Enter OTP and new PIN!', 'error'); return; }
+      const res = await MemberAPI.changePin(phone, otpCode, newPin);
+      if (res.statusCode === 200) {
+        closeChangePinModal();
+        showAlert('alertBox', 'PIN changed! Please login again.', 'success');
+        setTimeout(() => { clearMemberSession(); window.location.href = '/html/member-login.html'; }, 2000);
+      } else {
+        showAlert('pinModalAlert', res.message, 'error');
+      }
+    }
+
+    function formatDate(dateArr) {
+      if (!dateArr) return '—';
+      if (Array.isArray(dateArr)) {
+        const [y,m,d] = dateArr;
+        return `${String(d).padStart(2,'0')} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]} ${y}`;
+      }
+      return new Date(dateArr).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'});
+    }
+  </script>
+</body>
+</html>

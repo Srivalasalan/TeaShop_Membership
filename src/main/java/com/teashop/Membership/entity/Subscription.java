@@ -2,6 +2,8 @@ package com.teashop.Membership.entity;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.CreationTimestamp;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -26,16 +28,16 @@ public class Subscription {
 	@ManyToOne
 	@JoinColumn(name = "member_id", nullable = false)
 	private Member member;
+	@ManyToOne
+	@JoinColumn(name = "plan_id",nullable = false)
+	private SubscriptionPlan plan;
 	@Column(nullable = false)
-	private LocalDateTime starDate;
+	@CreationTimestamp
+	private LocalDateTime startDate;
 	@Column(nullable = false)
-	private LocalDateTime enDate;
-	@Column(nullable = false)
-	private int totalTeas;
+	private LocalDateTime endDate;
 	@Column(nullable = false)
 	private int teasUsed;
-	@Column(nullable = false)
-	private double amountPaid;
 	@Column(nullable = false)
 	private String status;
 
